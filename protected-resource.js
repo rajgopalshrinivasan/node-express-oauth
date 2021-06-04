@@ -2,7 +2,7 @@ const express = require("express")
 const bodyParser = require("body-parser")
 const fs = require("fs")
 const { timeout } = require("./utils")
-
+const jwt = require("jsonwebtoken");
 const config = {
 	port: 9002,
 	publicKey: fs.readFileSync("assets/public_key.pem"),
@@ -31,6 +31,41 @@ app.use(bodyParser.urlencoded({ extended: true }))
 /*
 Your code here
 */
+
+app.get("/user-info", ( req, res) => {
+
+
+	if(req.headers.authorization === undefined) {
+		res.status(401).send();
+		return;
+	}
+	const token = req.headers.authorization.slice("basic ".length).trim();
+
+	jwt.verify(token, config.publicKey,{algorithms: ["RS256"]}, (err, tokenDecoded) => {
+		if (err) {
+			
+			res.status(401).send();
+			return;
+		}
+		if(!users[tokenDecoded.userName].username) {
+			res.status(401).send();
+			return;
+		}
+		let resp = {}
+
+		const scopes = tokenDecoded.scope.split(' ')
+	
+		for (let index = 0; index < scopes.length; index++) {
+			const key = scopes[index].slice("permissions:".length - 1).trim();
+
+			resp[key] = users[tokenDecoded.userName][key];
+		}
+
+		res.status(200).json(resp);
+	});
+
+
+});
 
 const server = app.listen(config.port, "localhost", function () {
 	var host = server.address().address
